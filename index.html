@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Telemetri Air Sungai</title>
+    <title>Sungai di Politeknik Caltex Riau</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
@@ -90,7 +90,7 @@
             border: 1px solid var(--line);
             border-radius: 10px;
             box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-            min-width: 210px;
+            min-width: 230px;
             padding: 6px;
             display: none;
             z-index: 20;
@@ -156,6 +156,7 @@
             font-weight: 700;
             font-size: 1rem;
             letter-spacing: 0.5px;
+            margin-top: 6px;
         }
         .status-box::before {
             content: "";
@@ -182,6 +183,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .panel-title small { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
 
@@ -225,6 +228,21 @@
         }
         .tank-caption { text-align: center; font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
 
+        /* Kontrol grafik */
+        .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .controls label { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+        .controls select {
+            padding: 7px 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            color: var(--text);
+            background: #fff;
+            cursor: pointer;
+        }
+        .controls select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+        .controls select:focus { outline: 2px solid #bae6fd; border-color: var(--primary); }
+
         .chart-wrap { position: relative; height: 260px; }
 
         /* ===== TABLE ===== */
@@ -263,8 +281,8 @@
         <div class="brand">
             <div class="brand-icon">〰</div>
             <div>
-                <h1>Monitoring Ketinggian Sungai</h1>
-                <small>Sumber data: ThingSpeak</small>
+                <h1>Sungai di Politeknik Caltex Riau</h1>
+                <small>Monitoring ketinggian air · Sumber data: ThingSpeak</small>
             </div>
         </div>
         <div class="nav-right">
@@ -272,7 +290,7 @@
             <div class="dropdown">
                 <button class="dl-btn" id="dl-btn">⬇ Unduh Data ▾</button>
                 <div class="dl-menu" id="dl-menu">
-                    <button data-fmt="csv">CSV (Excel)<small>Cocok untuk dibuka di Excel / Sheets</small></button>
+                    <button data-fmt="csv">CSV (Excel)<small>Data grafik yang sedang ditampilkan</small></button>
                     <button data-fmt="json">JSON<small>Format data mentah untuk aplikasi lain</small></button>
                 </div>
             </div>
@@ -293,7 +311,7 @@
         </div>
         <div class="panel metric">
             <div class="label">Status Siaga</div>
-            <div id="val-status" class="status-box st-normal" style="margin-top:6px;">NORMAL</div>
+            <div id="val-status" class="status-box st-normal">NORMAL</div>
         </div>
     </div>
 
@@ -311,9 +329,15 @@
 
         <div class="panel">
             <div class="panel-title">
-                Grafik Ketinggian Air
-                <small id="chart-info">Memuat...</small>
+                <span>Grafik Ketinggian Air</span>
+                <div class="controls">
+                    <label for="sel-date">Tanggal</label>
+                    <select id="sel-date"></select>
+                    <label for="sel-hour">Jam</label>
+                    <select id="sel-hour" disabled></select>
+                </div>
             </div>
+            <div style="margin-bottom:8px;"><small id="chart-info" style="color:#64748b;">Memuat...</small></div>
             <div class="chart-wrap">
                 <canvas id="chart-tinggi"></canvas>
             </div>
@@ -345,20 +369,93 @@
     const CHANNEL_ID = '3573801';
     const READ_API_KEY = '5DY3SHV24BDSUZWJ';
     const TINGGI_MAX_SENSOR = 200.0; // cm
-    const JUMLAH_DATA = 100;          // jumlah data untuk grafik & unduhan
+    const JUMLAH_DATA = 100;          // jumlah data untuk mode terbaru
     const JUMLAH_TABEL = 8;           // jumlah baris pada tabel
     const INTERVAL_MS = 15000;
+    const MAKS_HARI_RIWAYAT = 7;      // batas riwayat ThingSpeak
+    const MAKS_RESULTS = 8000;        // batas hasil per permintaan ThingSpeak
 
-    let allFeeds = [];
+    let liveFeeds = [];   // data terbaru (untuk metrik & tabel)
+    let chartFeeds = [];  // data yang sedang ditampilkan di grafik
     let chart = null;
 
     // ===== Helper =====
     const num = v => parseFloat(v || 0);
+    const pad = n => String(n).padStart(2, '0');
 
     function getStatus(code) {
         if (code === 3) return { text: 'BAHAYA',  cls: 'st-bahaya',  color: '#b91c1c' };
         if (code === 2) return { text: 'WASPADA', cls: 'st-waspada', color: '#b45309' };
         return { text: 'NORMAL', cls: 'st-normal', color: '#059669' };
+    }
+
+    // Format waktu lokal -> "YYYY-MM-DD HH:MM:SS" UTC (format start/end ThingSpeak)
+    function toTSTime(d) {
+        return d.toISOString().slice(0, 19).replace('T', ' ');
+    }
+
+    // ===== Pilihan Tanggal & Jam =====
+    function initSelectors() {
+        const selDate = document.getElementById('sel-date');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        selDate.add(new Option('Terbaru (live)', 'live'));
+
+        for (let i = 0; i <= MAKS_HARI_RIWAYAT; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            let label = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+            if (i === 0) label = 'Hari ini · ' + label;
+            else if (i === 1) label = 'Kemarin · ' + label;
+            selDate.add(new Option(label, value));
+        }
+        selDate.value = 'live';
+
+        const selHour = document.getElementById('sel-hour');
+        selHour.add(new Option('Seluruh hari', 'all'));
+        for (let h = 0; h < 24; h++) {
+            selHour.add(new Option(`${pad(h)}:00 – ${pad(h)}:59`, String(h)));
+        }
+        selHour.value = 'all';
+
+        selDate.addEventListener('change', onRangeChange);
+        selHour.addEventListener('change', onRangeChange);
+    }
+
+    function isLive() {
+        return document.getElementById('sel-date').value === 'live';
+    }
+
+    // Hitung awal & akhir periode (waktu lokal -> UTC)
+    function getRange(dateStr, hourVal) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        let start, end;
+        if (hourVal === 'all') {
+            start = new Date(y, m - 1, d, 0, 0, 0);
+            end = new Date(y, m - 1, d + 1, 0, 0, 0);
+        } else {
+            const h = Number(hourVal);
+            start = new Date(y, m - 1, d, h, 0, 0);
+            end = new Date(y, m - 1, d, h + 1, 0, 0);
+        }
+        end = new Date(end.getTime() - 1000); // sampai detik terakhir periode
+        return { start: toTSTime(start), end: toTSTime(end) };
+    }
+
+    async function onRangeChange() {
+        const dateVal = document.getElementById('sel-date').value;
+        const selHour = document.getElementById('sel-hour');
+
+        if (dateVal === 'live') {
+            selHour.disabled = true;
+            chartFeeds = liveFeeds;
+            updateChart(chartFeeds, 'Data terbaru · ' + JUMLAH_DATA + ' titik terakhir');
+        } else {
+            selHour.disabled = false;
+            await loadHistory();
+        }
     }
 
     // ===== Grafik =====
@@ -406,13 +503,53 @@
         });
     }
 
-    function updateChart(feeds) {
-        chart.data.labels = feeds.map(f =>
-            new Date(f.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-        );
+    function updateChart(feeds, infoText) {
+        // Tampilkan tanggal di label jika data mencakup lebih dari satu hari
+        const multiDay = feeds.length > 1 &&
+            new Date(feeds[0].created_at).toDateString() !== new Date(feeds[feeds.length - 1].created_at).toDateString();
+
+        chart.data.labels = feeds.map(f => {
+            const d = new Date(f.created_at);
+            const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            return multiDay
+                ? `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${jam}`
+                : jam;
+        });
         chart.data.datasets[0].data = feeds.map(f => num(f.field1));
+        chart.data.datasets[0].pointRadius = feeds.length > 60 ? 0 : 2;
         chart.update();
-        document.getElementById('chart-info').innerText = feeds.length + ' titik data terakhir';
+
+        const info = feeds.length
+            ? `${infoText} · ${feeds.length} titik data`
+            : 'Tidak ada data pada periode ini';
+        document.getElementById('chart-info').innerText = info;
+    }
+
+    async function loadHistory() {
+        const dateVal = document.getElementById('sel-date').value;
+        const hourVal = document.getElementById('sel-hour').value;
+        const { start, end } = getRange(dateVal, hourVal);
+        const info = document.getElementById('chart-info');
+        info.innerText = 'Memuat riwayat...';
+
+        const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
+            + `?api_key=${READ_API_KEY}&results=${MAKS_RESULTS}`
+            + `&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            chartFeeds = data.feeds || [];
+
+            const label = hourVal === 'all'
+                ? 'Riwayat ' + document.getElementById('sel-date').selectedOptions[0].text
+                : `Riwayat ${dateVal} pukul ${pad(Number(hourVal))}:00–${pad(Number(hourVal))}:59`;
+            updateChart(chartFeeds, label);
+        } catch (err) {
+            console.error('History Error:', err);
+            chartFeeds = [];
+            updateChart([], 'Gagal memuat riwayat');
+        }
     }
 
     // ===== Update Metrik, Status, Tangki =====
@@ -460,7 +597,7 @@
         });
     }
 
-    // ===== Ambil Data =====
+    // ===== Ambil Data Terbaru =====
     async function fetchThingSpeakData() {
         const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?results=${JUMLAH_DATA}&api_key=${READ_API_KEY}`;
         const sync = document.getElementById('sync-status');
@@ -471,10 +608,15 @@
             const feeds = data.feeds;
 
             if (feeds && feeds.length > 0) {
-                allFeeds = feeds;
+                liveFeeds = feeds;
                 updateMetrics(feeds[feeds.length - 1]);
                 renderTable(feeds.slice(-JUMLAH_TABEL).reverse());
-                updateChart(feeds);
+
+                // Grafik ikut diperbarui hanya saat mode "Terbaru" dipilih
+                if (isLive()) {
+                    chartFeeds = liveFeeds;
+                    updateChart(chartFeeds, 'Data terbaru · ' + JUMLAH_DATA + ' titik terakhir');
+                }
 
                 sync.innerText = 'Terhubung (' + new Date().toLocaleTimeString('id-ID') + ')';
                 sync.className = 'ok';
@@ -499,8 +641,8 @@
     }
 
     function exportData(fmt) {
-        if (!allFeeds.length) {
-            alert('Data belum tersedia. Tunggu hingga data termuat.');
+        if (!chartFeeds.length) {
+            alert('Data belum tersedia untuk periode ini.');
             return;
         }
 
@@ -508,7 +650,7 @@
 
         if (fmt === 'csv') {
             const header = 'Waktu,Tinggi Air (cm),Jarak Sensor (cm),Status';
-            const rows = allFeeds.map(f => {
+            const rows = chartFeeds.map(f => {
                 const waktu = new Date(f.created_at).toLocaleString('id-ID');
                 const st = getStatus(parseInt(f.field3 || 1)).text;
                 return `"${waktu}",${num(f.field1).toFixed(1)},${num(f.field2).toFixed(1)},${st}`;
@@ -519,7 +661,7 @@
         }
 
         if (fmt === 'json') {
-            const payload = allFeeds.map(f => ({
+            const payload = chartFeeds.map(f => ({
                 waktu: f.created_at,
                 tinggi_air_cm: num(f.field1),
                 jarak_sensor_cm: num(f.field2),
@@ -545,6 +687,7 @@
     document.addEventListener('click', () => dlMenu.classList.remove('open'));
 
     // ===== Jalankan =====
+    initSelectors();
     initChart();
     fetchThingSpeakData();
     setInterval(fetchThingSpeakData, INTERVAL_MS);
