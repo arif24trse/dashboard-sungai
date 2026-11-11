@@ -4,282 +4,339 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Telemetri Air Sungai</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
 
         :root {
-            --bg-1: #0b1120;
-            --bg-2: #0f1f3d;
-            --glass: rgba(30, 41, 59, 0.55);
-            --glass-border: rgba(148, 163, 184, 0.15);
-            --text: #f8fafc;
-            --muted: #94a3b8;
-            --accent: #38bdf8;
-            --ok: #34d399;
-            --warn: #facc15;
-            --danger: #f87171;
+            --bg: #f1f5f9;
+            --panel: #ffffff;
+            --line: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+            --primary: #0ea5e9;
+            --primary-dark: #0369a1;
+            --ok: #059669;
+            --ok-bg: #d1fae5;
+            --warn: #b45309;
+            --warn-bg: #fef3c7;
+            --danger: #b91c1c;
+            --danger-bg: #fee2e2;
         }
 
-        body {
-            min-height: 100vh;
-            background: radial-gradient(circle at top left, var(--bg-2), var(--bg-1) 60%);
-            background-attachment: fixed;
-            color: var(--text);
-            padding: 24px 16px;
+        body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        /* ===== NAVBAR ===== */
+        .navbar {
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
+        .nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #38bdf8, #0369a1);
+            display: grid; place-items: center;
+            color: #fff; font-size: 1.2rem;
+        }
+        .brand h1 { font-size: 1.05rem; font-weight: 700; }
+        .brand small { color: var(--muted); font-size: 0.78rem; }
 
-        .container { max-width: 960px; margin: 0 auto; }
-
-        /* ===== HEADER ===== */
-        header { text-align: center; margin-bottom: 30px; animation: fadeDown 0.8s ease both; }
-        header .badge {
-            display: inline-block;
-            font-size: 0.7rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--accent);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            padding: 4px 12px;
+        .nav-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        #sync-status {
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 6px 12px;
             border-radius: 999px;
-            margin-bottom: 12px;
+            background: #fef9c3;
+            color: #854d0e;
+            transition: all 0.3s ease;
         }
-        header h1 {
-            font-size: 2rem;
-            background: linear-gradient(90deg, #38bdf8, #818cf8, #34d399);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        header p { color: var(--muted); font-size: 0.9rem; margin-top: 8px; }
-        #sync-status { font-weight: 600; transition: color 0.3s ease; }
+        #sync-status.ok { background: var(--ok-bg); color: var(--ok); }
+        #sync-status.err { background: var(--danger-bg); color: var(--danger); }
 
-        /* ===== METRIC CARDS ===== */
-        .grid {
+        /* Dropdown unduh */
+        .dropdown { position: relative; }
+        .dl-btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .dl-btn:hover { background: var(--primary-dark); }
+        .dl-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+            min-width: 210px;
+            padding: 6px;
+            display: none;
+            z-index: 20;
+        }
+        .dl-menu.open { display: block; }
+        .dl-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: var(--text);
+        }
+        .dl-menu button:hover { background: #f0f9ff; }
+        .dl-menu small { display: block; color: var(--muted); font-size: 0.74rem; margin-top: 2px; }
+
+        /* ===== LAYOUT ===== */
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
+
+        .metrics {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin-bottom: 20px;
         }
-        .card {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 24px 20px;
-            border: 1px solid var(--glass-border);
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease, border-color 0.3s ease;
-            animation: fadeUp 0.6s ease both;
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
-        .card:hover { transform: translateY(-4px); border-color: rgba(56, 189, 248, 0.4); }
-        .grid .card:nth-child(2) { animation-delay: 0.1s; }
-        .grid .card:nth-child(3) { animation-delay: 0.2s; }
-
-        .card-title {
-            font-size: 0.75rem;
+        .metric { text-align: left; position: relative; overflow: hidden; }
+        .metric::after {
+            content: "";
+            position: absolute;
+            right: -20px; top: -20px;
+            width: 90px; height: 90px;
+            border-radius: 50%;
+            background: rgba(14, 165, 233, 0.08);
+        }
+        .label {
+            font-size: 0.74rem;
             color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 12px;
+            letter-spacing: 1.2px;
+            font-weight: 600;
+            margin-bottom: 10px;
         }
-        .card-value {
-            font-size: 2.6rem;
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            text-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
-        }
-        .unit { font-size: 1rem; color: #64748b; font-weight: normal; }
+        .value { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .unit { font-size: 1rem; color: var(--muted); font-weight: 500; }
 
-        /* Status badge */
         .status-box {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 22px;
+            padding: 8px 18px;
             border-radius: 999px;
             font-weight: 700;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
         }
         .status-box::before {
             content: "";
-            width: 10px; height: 10px;
+            width: 9px; height: 9px;
             border-radius: 50%;
             background: currentColor;
-            animation: pulse 1.6s infinite;
+            animation: blink 1.4s infinite;
         }
-        .st-normal  { background: rgba(6, 95, 70, 0.6);  color: var(--ok);     box-shadow: 0 0 20px rgba(52, 211, 153, 0.2); }
-        .st-waspada { background: rgba(133, 77, 14, 0.6); color: var(--warn);   box-shadow: 0 0 20px rgba(250, 204, 21, 0.25); }
-        .st-bahaya  { background: rgba(153, 27, 27, 0.6); color: var(--danger); box-shadow: 0 0 24px rgba(248, 113, 113, 0.35); }
+        .st-normal  { background: var(--ok-bg);     color: var(--ok); }
+        .st-waspada { background: var(--warn-bg);   color: var(--warn); }
+        .st-bahaya  { background: var(--danger-bg); color: var(--danger); }
 
-        /* ===== VISUALIZER ===== */
-        .visualizer {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid var(--glass-border);
-            margin-bottom: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            animation: fadeUp 0.7s ease both;
+        /* ===== MIDDLE ROW (tangki + grafik) ===== */
+        .middle {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 18px;
+            margin-bottom: 20px;
         }
-        .visualizer .card-title { margin-bottom: 15px; }
-
-        .river-outer {
-            width: 100%;
-            height: 200px;
-            background: #0a1322;
-            border: 2px solid #334155;
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
+        .panel-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 14px;
             display: flex;
-            align-items: flex-end;
+            justify-content: space-between;
+            align-items: center;
         }
-        /* Garis skala ukur */
-        .river-outer::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: repeating-linear-gradient(
-                to top,
-                transparent 0 19px,
-                rgba(148, 163, 184, 0.12) 19px 20px
-            );
-            pointer-events: none;
-            z-index: 2;
-        }
-        .water-inner {
+        .panel-title small { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
+
+        .tank {
             position: relative;
+            height: 260px;
+            width: 110px;
+            margin: 0 auto;
+            border: 3px solid #cbd5e1;
+            border-radius: 10px 10px 16px 16px;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .water {
+            position: absolute;
+            bottom: 0; left: 0;
             width: 100%;
             height: 0%;
-            background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+            background: linear-gradient(180deg, #7dd3fc 0%, #0284c7 100%);
             transition: height 0.8s ease;
         }
-        /* Gelombang animasi di permukaan air */
-        .water-inner::before,
-        .water-inner::after {
+        .water::before {
             content: "";
             position: absolute;
-            top: -14px;
-            left: -50%;
-            width: 200%;
-            height: 30px;
-            background: rgba(125, 211, 252, 0.35);
+            top: -10px; left: -50%;
+            width: 200%; height: 20px;
+            background: rgba(255, 255, 255, 0.35);
             border-radius: 40%;
-            animation: wave 4s linear infinite;
+            animation: wave 3.5s linear infinite;
         }
-        .water-inner::after {
-            top: -10px;
-            background: rgba(56, 189, 248, 0.25);
-            animation-duration: 6s;
-            animation-direction: reverse;
+        .tank-scale {
+            position: absolute;
+            right: 8px; top: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: var(--muted);
+            padding: 6px 0;
+            pointer-events: none;
         }
+        .tank-caption { text-align: center; font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
 
-        /* ===== LOG TABLE ===== */
-        .log-section {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            animation: fadeUp 0.8s ease both;
-            overflow-x: auto;
-        }
-        .log-section .card-title { margin-bottom: 10px; }
+        .chart-wrap { position: relative; height: 260px; }
+
+        /* ===== TABLE ===== */
+        .table-wrap { overflow-x: auto; }
         .log-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 480px; }
         .log-table th, .log-table td {
             padding: 12px 10px;
             text-align: left;
-            border-bottom: 1px solid rgba(51, 65, 85, 0.7);
+            border-bottom: 1px solid var(--line);
         }
         .log-table th {
             color: var(--muted);
-            font-size: 0.75rem;
+            font-size: 0.74rem;
             text-transform: uppercase;
             letter-spacing: 1px;
             font-weight: 600;
+            background: #f8fafc;
         }
-        .log-table tbody tr { transition: background 0.2s ease; }
-        .log-table tbody tr:hover { background: rgba(56, 189, 248, 0.06); }
-        .log-table tbody tr:first-child td { color: var(--text); font-weight: 600; }
-        .log-table td b { letter-spacing: 0.5px; }
+        .log-table tbody tr:hover { background: #f0f9ff; }
+        .log-table tbody tr:first-child td { font-weight: 600; }
 
         /* ===== ANIMATIONS ===== */
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(16px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeDown {
-            from { opacity: 0; transform: translateY(-16px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse {
-            0%   { opacity: 1; transform: scale(1); }
-            50%  { opacity: 0.4; transform: scale(1.4); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes wave {
-            from { transform: translateX(0) rotate(0deg); }
-            to   { transform: translateX(-25%) rotate(360deg); }
-        }
+        @keyframes wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-        @media (max-width: 600px) {
-            header h1 { font-size: 1.5rem; }
-            .card-value { font-size: 2.1rem; }
+        @media (max-width: 760px) {
+            .middle { grid-template-columns: 1fr; }
+            .value { font-size: 2rem; }
         }
     </style>
 </head>
 <body>
 
+<nav class="navbar">
+    <div class="nav-inner">
+        <div class="brand">
+            <div class="brand-icon">〰</div>
+            <div>
+                <h1>Monitoring Ketinggian Sungai</h1>
+                <small>Sumber data: ThingSpeak</small>
+            </div>
+        </div>
+        <div class="nav-right">
+            <span id="sync-status">Mengambil data...</span>
+            <div class="dropdown">
+                <button class="dl-btn" id="dl-btn">⬇ Unduh Data ▾</button>
+                <div class="dl-menu" id="dl-menu">
+                    <button data-fmt="csv">CSV (Excel)<small>Cocok untuk dibuka di Excel / Sheets</small></button>
+                    <button data-fmt="json">JSON<small>Format data mentah untuk aplikasi lain</small></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
 <div class="container">
-    <header>
-        <span class="badge">Telemetri Real-time</span>
-        <h1>Monitoring Ketinggian Sungai (ThingSpeak)</h1>
-        <p>Status Sync: <span id="sync-status" style="color: #facc15;">Mengambil data...</span></p>
-    </header>
 
-    <div class="grid">
-        <div class="card">
-            <div class="card-title">Tinggi Air Sungai</div>
-            <div class="card-value" id="val-tinggi">0.0 <span class="unit">cm</span></div>
+    <div class="metrics">
+        <div class="panel metric">
+            <div class="label">Tinggi Air Sungai</div>
+            <div class="value" id="val-tinggi">0.0 <span class="unit">cm</span></div>
         </div>
-        <div class="card">
-            <div class="card-title">Jarak Sensor ke Air</div>
-            <div class="card-value" id="val-jarak">0.0 <span class="unit">cm</span></div>
+        <div class="panel metric">
+            <div class="label">Jarak Sensor ke Air</div>
+            <div class="value" id="val-jarak">0.0 <span class="unit">cm</span></div>
         </div>
-        <div class="card">
-            <div class="card-title">Status Siaga</div>
-            <div id="val-status" class="status-box st-normal">NORMAL</div>
+        <div class="panel metric">
+            <div class="label">Status Siaga</div>
+            <div id="val-status" class="status-box st-normal" style="margin-top:6px;">NORMAL</div>
         </div>
     </div>
 
-    <div class="visualizer">
-        <div class="card-title">Visual Ketinggian Air Sungai</div>
-        <div class="river-outer">
-            <div id="water-fill" class="water-inner"></div>
+    <div class="middle">
+        <div class="panel">
+            <div class="panel-title">Visual Ketinggian Air</div>
+            <div class="tank">
+                <div class="tank-scale">
+                    <span>200</span><span>150</span><span>100</span><span>50</span><span>0</span>
+                </div>
+                <div id="water-fill" class="water"></div>
+            </div>
+            <div class="tank-caption">Skala maksimum sensor: 200 cm</div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                Grafik Ketinggian Air
+                <small id="chart-info">Memuat...</small>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="chart-tinggi"></canvas>
+            </div>
         </div>
     </div>
 
-    <div class="log-section">
-        <div class="card-title">Riwayat Telemetri Terakhir (ThingSpeak Feeds)</div>
-        <table class="log-table">
-            <thead>
-                <tr>
-                    <th>Waktu (WIB)</th>
-                    <th>Tinggi Air (cm)</th>
-                    <th>Jarak Sensor (cm)</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="log-body">
-                <tr><td colspan="4" style="text-align:center; color:#64748b;">Memuat data...</td></tr>
-            </tbody>
-        </table>
+    <div class="panel">
+        <div class="panel-title">Riwayat Telemetri Terakhir (ThingSpeak Feeds)</div>
+        <div class="table-wrap">
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Waktu (WIB)</th>
+                        <th>Tinggi Air (cm)</th>
+                        <th>Jarak Sensor (cm)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="log-body">
+                    <tr><td colspan="4" style="text-align:center; color:#64748b;">Memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -288,9 +345,125 @@
     const CHANNEL_ID = '3573801';
     const READ_API_KEY = '5DY3SHV24BDSUZWJ';
     const TINGGI_MAX_SENSOR = 200.0; // cm
+    const JUMLAH_DATA = 100;          // jumlah data untuk grafik & unduhan
+    const JUMLAH_TABEL = 8;           // jumlah baris pada tabel
+    const INTERVAL_MS = 15000;
 
+    let allFeeds = [];
+    let chart = null;
+
+    // ===== Helper =====
+    const num = v => parseFloat(v || 0);
+
+    function getStatus(code) {
+        if (code === 3) return { text: 'BAHAYA',  cls: 'st-bahaya',  color: '#b91c1c' };
+        if (code === 2) return { text: 'WASPADA', cls: 'st-waspada', color: '#b45309' };
+        return { text: 'NORMAL', cls: 'st-normal', color: '#059669' };
+    }
+
+    // ===== Grafik =====
+    function initChart() {
+        const ctx = document.getElementById('chart-tinggi').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+        gradient.addColorStop(0, 'rgba(14, 165, 233, 0.35)');
+        gradient.addColorStop(1, 'rgba(14, 165, 233, 0.02)');
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Tinggi Air (cm)',
+                    data: [],
+                    borderColor: '#0284c7',
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: TINGGI_MAX_SENSOR,
+                        title: { display: true, text: 'Tinggi (cm)' },
+                        grid: { color: '#e2e8f0' }
+                    },
+                    x: {
+                        ticks: { maxRotation: 0, autoSkipPadding: 16 },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateChart(feeds) {
+        chart.data.labels = feeds.map(f =>
+            new Date(f.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        );
+        chart.data.datasets[0].data = feeds.map(f => num(f.field1));
+        chart.update();
+        document.getElementById('chart-info').innerText = feeds.length + ' titik data terakhir';
+    }
+
+    // ===== Update Metrik, Status, Tangki =====
+    function updateMetrics(latest) {
+        const tinggiAir = num(latest.field1).toFixed(1);
+        const jarakSensor = num(latest.field2).toFixed(1);
+        const st = getStatus(parseInt(latest.field3 || 1));
+
+        document.getElementById('val-tinggi').innerHTML = `${tinggiAir} <span class="unit">cm</span>`;
+        document.getElementById('val-jarak').innerHTML = `${jarakSensor} <span class="unit">cm</span>`;
+
+        const statusElem = document.getElementById('val-status');
+        statusElem.innerText = st.text;
+        statusElem.className = 'status-box ' + st.cls;
+
+        let percent = (tinggiAir / TINGGI_MAX_SENSOR) * 100;
+        if (percent > 100) percent = 100;
+        if (percent < 0) percent = 0;
+        const water = document.getElementById('water-fill');
+        water.style.height = `${percent}%`;
+        water.style.background = st.text === 'BAHAYA'
+            ? 'linear-gradient(180deg, #fca5a5, #dc2626)'
+            : st.text === 'WASPADA'
+                ? 'linear-gradient(180deg, #fde68a, #d97706)'
+                : 'linear-gradient(180deg, #7dd3fc, #0284c7)';
+    }
+
+    // ===== Tabel =====
+    function renderTable(feeds) {
+        const logBody = document.getElementById('log-body');
+        logBody.innerHTML = '';
+
+        feeds.forEach(feed => {
+            const time = new Date(feed.created_at).toLocaleTimeString('id-ID');
+            const tAir = num(feed.field1).toFixed(1);
+            const jSensor = num(feed.field2).toFixed(1);
+            const st = getStatus(parseInt(feed.field3 || 1));
+
+            logBody.insertAdjacentHTML('beforeend', `<tr>
+                <td>${time}</td>
+                <td>${tAir}</td>
+                <td>${jSensor}</td>
+                <td><b style="color:${st.color}">${st.text}</b></td>
+            </tr>`);
+        });
+    }
+
+    // ===== Ambil Data =====
     async function fetchThingSpeakData() {
-        let url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?results=8&api_key=${READ_API_KEY}`;
+        const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?results=${JUMLAH_DATA}&api_key=${READ_API_KEY}`;
+        const sync = document.getElementById('sync-status');
 
         try {
             const response = await fetch(url);
@@ -298,73 +471,83 @@
             const feeds = data.feeds;
 
             if (feeds && feeds.length > 0) {
-                const latest = feeds[feeds.length - 1];
+                allFeeds = feeds;
+                updateMetrics(feeds[feeds.length - 1]);
+                renderTable(feeds.slice(-JUMLAH_TABEL).reverse());
+                updateChart(feeds);
 
-                const tinggiAir = parseFloat(latest.field1 || 0).toFixed(1);
-                const jarakSensor = parseFloat(latest.field2 || 0).toFixed(1);
-                const statusCode = parseInt(latest.field3 || 1);
-
-                // Update Metric Box
-                document.getElementById('val-tinggi').innerHTML = `${tinggiAir} <span class="unit">cm</span>`;
-                document.getElementById('val-jarak').innerHTML = `${jarakSensor} <span class="unit">cm</span>`;
-
-                // Update Status Badge
-                const statusElem = document.getElementById('val-status');
-                if (statusCode === 3) {
-                    statusElem.innerText = 'BAHAYA';
-                    statusElem.className = 'status-box st-bahaya';
-                } else if (statusCode === 2) {
-                    statusElem.innerText = 'WASPADA';
-                    statusElem.className = 'status-box st-waspada';
-                } else {
-                    statusElem.innerText = 'NORMAL';
-                    statusElem.className = 'status-box st-normal';
-                }
-
-                // Update Visual Air
-                let percent = (tinggiAir / TINGGI_MAX_SENSOR) * 100;
-                if (percent > 100) percent = 100;
-                if (percent < 0) percent = 0;
-                document.getElementById('water-fill').style.height = `${percent}%`;
-
-                // Render Table Log
-                const logBody = document.getElementById('log-body');
-                logBody.innerHTML = '';
-
-                feeds.slice().reverse().forEach(feed => {
-                    const time = new Date(feed.created_at).toLocaleTimeString('id-ID');
-                    const tAir = parseFloat(feed.field1 || 0).toFixed(1);
-                    const jSensor = parseFloat(feed.field2 || 0).toFixed(1);
-                    const sCode = parseInt(feed.field3 || 1);
-
-                    let stText = 'NORMAL';
-                    let stColor = '#34d399';
-                    if (sCode === 3) { stText = 'BAHAYA'; stColor = '#f87171'; }
-                    else if (sCode === 2) { stText = 'WASPADA'; stColor = '#facc15'; }
-
-                    const row = `<tr>
-                        <td>${time}</td>
-                        <td>${tAir}</td>
-                        <td>${jSensor}</td>
-                        <td><b style="color:${stColor}">${stText}</b></td>
-                    </tr>`;
-                    logBody.insertAdjacentHTML('beforeend', row);
-                });
-
-                const sync = document.getElementById('sync-status');
                 sync.innerText = 'Terhubung (' + new Date().toLocaleTimeString('id-ID') + ')';
-                sync.style.color = '#34d399';
+                sync.className = 'ok';
             }
         } catch (err) {
             console.error('Fetch Error:', err);
-            const sync = document.getElementById('sync-status');
             sync.innerText = 'Gagal Mengambil Data';
-            sync.style.color = '#f87171';
+            sync.className = 'err';
         }
     }
 
+    // ===== Unduh Data =====
+    function downloadFile(content, filename, mime) {
+        const blob = new Blob([content], { type: mime });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }
+
+    function exportData(fmt) {
+        if (!allFeeds.length) {
+            alert('Data belum tersedia. Tunggu hingga data termuat.');
+            return;
+        }
+
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+        if (fmt === 'csv') {
+            const header = 'Waktu,Tinggi Air (cm),Jarak Sensor (cm),Status';
+            const rows = allFeeds.map(f => {
+                const waktu = new Date(f.created_at).toLocaleString('id-ID');
+                const st = getStatus(parseInt(f.field3 || 1)).text;
+                return `"${waktu}",${num(f.field1).toFixed(1)},${num(f.field2).toFixed(1)},${st}`;
+            });
+            // BOM agar karakter Indonesia terbaca benar di Excel
+            downloadFile('\uFEFF' + [header, ...rows].join('\n'),
+                `telemetri_sungai_${stamp}.csv`, 'text/csv;charset=utf-8');
+        }
+
+        if (fmt === 'json') {
+            const payload = allFeeds.map(f => ({
+                waktu: f.created_at,
+                tinggi_air_cm: num(f.field1),
+                jarak_sensor_cm: num(f.field2),
+                status: getStatus(parseInt(f.field3 || 1)).text
+            }));
+            downloadFile(JSON.stringify(payload, null, 2),
+                `telemetri_sungai_${stamp}.json`, 'application/json');
+        }
+
+        document.getElementById('dl-menu').classList.remove('open');
+    }
+
+    // Menu dropdown
+    const dlBtn = document.getElementById('dl-btn');
+    const dlMenu = document.getElementById('dl-menu');
+    dlBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        dlMenu.classList.toggle('open');
+    });
+    dlMenu.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => exportData(btn.dataset.fmt));
+    });
+    document.addEventListener('click', () => dlMenu.classList.remove('open'));
+
+    // ===== Jalankan =====
+    initChart();
     fetchThingSpeakData();
-    setInterval(fetchThingSpeakData, 15000);
+    setInterval(fetchThingSpeakData, INTERVAL_MS);
 </script>
 
 </body>
