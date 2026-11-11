@@ -24,7 +24,21 @@
             --danger-bg: #fee2e2;
         }
 
-        body { background: var(--bg); color: var(--text); min-height: 100vh; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; position: relative; }
+
+        /* ===== WATERMARK ===== */
+        #watermark {
+            position: fixed;
+            inset: 0;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: min(480px, 70vw);
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 0;
+            display: none;
+        }
+        #watermark.show { display: block; }
 
         /* ===== NAVBAR ===== */
         .navbar {
@@ -51,7 +65,10 @@
             background: linear-gradient(135deg, #38bdf8, #0369a1);
             display: grid; place-items: center;
             color: #fff; font-size: 1.2rem;
+            overflow: hidden;
+            flex-shrink: 0;
         }
+        .brand-icon img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
         .brand h1 { font-size: 1.05rem; font-weight: 700; }
         .brand small { color: var(--muted); font-size: 0.78rem; }
 
@@ -68,11 +85,7 @@
         #sync-status.ok { background: var(--ok-bg); color: var(--ok); }
         #sync-status.err { background: var(--danger-bg); color: var(--danger); }
 
-        /* Dropdown unduh */
-        .dropdown { position: relative; }
-        .dl-btn {
-            background: var(--primary);
-            color: #fff;
+        .btn {
             border: none;
             padding: 9px 16px;
             border-radius: 8px;
@@ -81,7 +94,15 @@
             cursor: pointer;
             transition: background 0.2s ease;
         }
-        .dl-btn:hover { background: var(--primary-dark); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-ghost { background: #f1f5f9; color: var(--text); }
+        .btn-ghost:hover { background: #e2e8f0; }
+        .btn-danger { background: var(--danger-bg); color: var(--danger); }
+        .btn-danger:hover { background: #fecaca; }
+
+        /* Dropdown unduh */
+        .dropdown { position: relative; }
         .dl-menu {
             position: absolute;
             right: 0;
@@ -112,7 +133,13 @@
         .dl-menu small { display: block; color: var(--muted); font-size: 0.74rem; margin-top: 2px; }
 
         /* ===== LAYOUT ===== */
-        .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px 40px;
+            position: relative;
+            z-index: 1;
+        }
 
         .metrics {
             display: grid;
@@ -169,7 +196,7 @@
         .st-waspada { background: var(--warn-bg);   color: var(--warn); }
         .st-bahaya  { background: var(--danger-bg); color: var(--danger); }
 
-        /* ===== MIDDLE ROW (tangki + grafik) ===== */
+        /* ===== MIDDLE ROW ===== */
         .middle {
             display: grid;
             grid-template-columns: 1fr 2fr;
@@ -228,7 +255,6 @@
         }
         .tank-caption { text-align: center; font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
 
-        /* Kontrol grafik */
         .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .controls label { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
         .controls select {
@@ -264,7 +290,54 @@
         .log-table tbody tr:hover { background: #f0f9ff; }
         .log-table tbody tr:first-child td { font-weight: 600; }
 
-        /* ===== ANIMATIONS ===== */
+        /* ===== MODAL ===== */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 100;
+        }
+        .modal.open { display: flex; }
+        .modal-box {
+            background: var(--panel);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 360px;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+        }
+        .modal-box h2 { font-size: 1.05rem; margin-bottom: 4px; }
+        .modal-box p.desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 16px; }
+        .field { margin-bottom: 12px; }
+        .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+        .field input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .field input:focus { outline: 2px solid #bae6fd; border-color: var(--primary); }
+        .login-error { color: var(--danger); font-size: 0.8rem; min-height: 1.2em; margin-bottom: 8px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+        .admin-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .admin-option span { font-size: 0.88rem; font-weight: 600; }
+        .admin-option small { display: block; color: var(--muted); font-weight: 400; font-size: 0.74rem; }
+        .hidden-input { display: none; }
+
         @keyframes wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
@@ -276,10 +349,15 @@
 </head>
 <body>
 
+<div id="watermark"></div>
+
 <nav class="navbar">
     <div class="nav-inner">
         <div class="brand">
-            <div class="brand-icon">〰</div>
+            <div class="brand-icon">
+                <img id="logo-img" alt="Logo" style="display:none;">
+                <span id="logo-fallback">〰</span>
+            </div>
             <div>
                 <h1>Sungai di Politeknik Caltex Riau</h1>
                 <small>Monitoring ketinggian air · Sumber data: ThingSpeak</small>
@@ -287,8 +365,9 @@
         </div>
         <div class="nav-right">
             <span id="sync-status">Mengambil data...</span>
+            <button class="btn btn-ghost" id="admin-btn" title="Pengaturan admin">🔒 Admin</button>
             <div class="dropdown">
-                <button class="dl-btn" id="dl-btn">⬇ Unduh Data ▾</button>
+                <button class="btn btn-primary" id="dl-btn">⬇ Unduh Data ▾</button>
                 <div class="dl-menu" id="dl-menu">
                     <button data-fmt="csv">CSV (Excel)<small>Data grafik yang sedang ditampilkan</small></button>
                     <button data-fmt="json">JSON<small>Format data mentah untuk aplikasi lain</small></button>
@@ -364,6 +443,58 @@
     </div>
 </div>
 
+<!-- Modal login admin -->
+<div class="modal" id="login-modal">
+    <div class="modal-box">
+        <h2>Login Admin</h2>
+        <p class="desc">Masukkan username dan password untuk mengganti logo dan watermark.</p>
+        <div class="field">
+            <label for="login-user">Username</label>
+            <input type="text" id="login-user" autocomplete="username">
+        </div>
+        <div class="field">
+            <label for="login-pass">Password</label>
+            <input type="password" id="login-pass" autocomplete="current-password">
+        </div>
+        <div class="login-error" id="login-error"></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" id="login-cancel">Batal</button>
+            <button class="btn btn-primary" id="login-submit">Masuk</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal panel admin -->
+<div class="modal" id="admin-modal">
+    <div class="modal-box">
+        <h2>Pengaturan Tampilan</h2>
+        <p class="desc">Pilih gambar dari file perangkat Anda. Pengaturan disimpan di browser ini.</p>
+
+        <div class="admin-option">
+            <div>
+                <span>Ganti Logo</span>
+                <small>Tampil di pojok kiri navbar</small>
+            </div>
+            <button class="btn btn-primary" id="btn-logo">Pilih</button>
+        </div>
+        <div class="admin-option">
+            <div>
+                <span>Ganti Watermark</span>
+                <small>Gambar transparan di background</small>
+            </div>
+            <button class="btn btn-primary" id="btn-wm">Pilih</button>
+        </div>
+
+        <input type="file" id="file-logo" accept="image/*" class="hidden-input">
+        <input type="file" id="file-wm" accept="image/*" class="hidden-input">
+
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="btn-reset">Reset</button>
+            <button class="btn btn-ghost" id="admin-close">Tutup</button>
+        </div>
+    </div>
+</div>
+
 <script>
     // --- KONFIGURASI THINGSPEAK (SUDAH DISESUAIKAN) ---
     const CHANNEL_ID = '3573801';
@@ -374,6 +505,12 @@
     const INTERVAL_MS = 15000;
     const MAKS_HARI_RIWAYAT = 7;      // batas riwayat ThingSpeak
     const MAKS_RESULTS = 8000;        // batas hasil per permintaan ThingSpeak
+
+    // --- LOGIN ADMIN ---
+    const ADMIN_USER = 'adlu';
+    const ADMIN_PASS = '123654';
+    const STORAGE_LOGO = 'sungai_logo';
+    const STORAGE_WM = 'sungai_watermark';
 
     let liveFeeds = [];   // data terbaru (untuk metrik & tabel)
     let chartFeeds = [];  // data yang sedang ditampilkan di grafik
@@ -440,7 +577,7 @@
             start = new Date(y, m - 1, d, h, 0, 0);
             end = new Date(y, m - 1, d, h + 1, 0, 0);
         }
-        end = new Date(end.getTime() - 1000); // sampai detik terakhir periode
+        end = new Date(end.getTime() - 1000);
         return { start: toTSTime(start), end: toTSTime(end) };
     }
 
@@ -504,7 +641,6 @@
     }
 
     function updateChart(feeds, infoText) {
-        // Tampilkan tanggal di label jika data mencakup lebih dari satu hari
         const multiDay = feeds.length > 1 &&
             new Date(feeds[0].created_at).toDateString() !== new Date(feeds[feeds.length - 1].created_at).toDateString();
 
@@ -612,7 +748,6 @@
                 updateMetrics(feeds[feeds.length - 1]);
                 renderTable(feeds.slice(-JUMLAH_TABEL).reverse());
 
-                // Grafik ikut diperbarui hanya saat mode "Terbaru" dipilih
                 if (isLive()) {
                     chartFeeds = liveFeeds;
                     updateChart(chartFeeds, 'Data terbaru · ' + JUMLAH_DATA + ' titik terakhir');
@@ -655,7 +790,6 @@
                 const st = getStatus(parseInt(f.field3 || 1)).text;
                 return `"${waktu}",${num(f.field1).toFixed(1)},${num(f.field2).toFixed(1)},${st}`;
             });
-            // BOM agar karakter Indonesia terbaca benar di Excel
             downloadFile('\uFEFF' + [header, ...rows].join('\n'),
                 `telemetri_sungai_${stamp}.csv`, 'text/csv;charset=utf-8');
         }
@@ -674,7 +808,128 @@
         document.getElementById('dl-menu').classList.remove('open');
     }
 
-    // Menu dropdown
+    // ===== Admin: Login & Pengaturan Gambar =====
+    const loginModal = document.getElementById('login-modal');
+    const adminModal = document.getElementById('admin-modal');
+
+    function openModal(m) { m.classList.add('open'); }
+    function closeModal(m) { m.classList.remove('open'); }
+
+    function openAdmin() {
+        document.getElementById('login-user').value = '';
+        document.getElementById('login-pass').value = '';
+        document.getElementById('login-error').innerText = '';
+        openModal(loginModal);
+        setTimeout(() => document.getElementById('login-user').focus(), 50);
+    }
+
+    function tryLogin() {
+        const u = document.getElementById('login-user').value.trim();
+        const p = document.getElementById('login-pass').value;
+        if (u === ADMIN_USER && p === ADMIN_PASS) {
+            closeModal(loginModal);
+            openModal(adminModal);
+        } else {
+            document.getElementById('login-error').innerText = 'Username atau password salah.';
+            document.getElementById('login-pass').value = '';
+            document.getElementById('login-pass').focus();
+        }
+    }
+
+    // Baca file gambar sebagai data URL
+    function readImage(file, callback) {
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Ukuran gambar maksimal 2 MB agar tersimpan di browser.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = e => callback(e.target.result);
+        reader.readAsDataURL(file);
+    }
+
+    function applyLogo(dataUrl) {
+        const img = document.getElementById('logo-img');
+        const fallback = document.getElementById('logo-fallback');
+        if (dataUrl) {
+            img.src = dataUrl;
+            img.style.display = 'block';
+            fallback.style.display = 'none';
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+            fallback.style.display = '';
+        }
+    }
+
+    function applyWatermark(dataUrl) {
+        const wm = document.getElementById('watermark');
+        if (dataUrl) {
+            wm.style.backgroundImage = `url("${dataUrl}")`;
+            wm.classList.add('show');
+        } else {
+            wm.style.backgroundImage = '';
+            wm.classList.remove('show');
+        }
+    }
+
+    function saveSetting(key, value) {
+        try {
+            if (value) localStorage.setItem(key, value);
+            else localStorage.removeItem(key);
+        } catch (e) {
+            alert('Gagal menyimpan gambar: penyimpanan browser penuh.');
+        }
+    }
+
+    function loadSavedImages() {
+        try {
+            applyLogo(localStorage.getItem(STORAGE_LOGO));
+            applyWatermark(localStorage.getItem(STORAGE_WM));
+        } catch (e) { /* localStorage tidak tersedia */ }
+    }
+
+    // Event admin
+    document.getElementById('admin-btn').addEventListener('click', openAdmin);
+    document.getElementById('login-cancel').addEventListener('click', () => closeModal(loginModal));
+    document.getElementById('login-submit').addEventListener('click', tryLogin);
+    document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+    document.getElementById('login-user').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-pass').focus(); });
+
+    document.getElementById('admin-close').addEventListener('click', () => closeModal(adminModal));
+    document.getElementById('btn-logo').addEventListener('click', () => document.getElementById('file-logo').click());
+    document.getElementById('btn-wm').addEventListener('click', () => document.getElementById('file-wm').click());
+
+    document.getElementById('file-logo').addEventListener('change', e => {
+        readImage(e.target.files[0], dataUrl => {
+            saveSetting(STORAGE_LOGO, dataUrl);
+            applyLogo(dataUrl);
+        });
+        e.target.value = '';
+    });
+
+    document.getElementById('file-wm').addEventListener('change', e => {
+        readImage(e.target.files[0], dataUrl => {
+            saveSetting(STORAGE_WM, dataUrl);
+            applyWatermark(dataUrl);
+        });
+        e.target.value = '';
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        if (!confirm('Kembalikan logo dan watermark ke tampilan awal?')) return;
+        saveSetting(STORAGE_LOGO, null);
+        saveSetting(STORAGE_WM, null);
+        applyLogo(null);
+        applyWatermark(null);
+    });
+
+    // Klik di luar kotak modal untuk menutup
+    [loginModal, adminModal].forEach(m => {
+        m.addEventListener('click', e => { if (e.target === m) closeModal(m); });
+    });
+
+    // ===== Menu dropdown unduh =====
     const dlBtn = document.getElementById('dl-btn');
     const dlMenu = document.getElementById('dl-menu');
     dlBtn.addEventListener('click', e => {
@@ -687,6 +942,7 @@
     document.addEventListener('click', () => dlMenu.classList.remove('open'));
 
     // ===== Jalankan =====
+    loadSavedImages();
     initSelectors();
     initChart();
     fetchThingSpeakData();
