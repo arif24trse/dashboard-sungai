@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sungai di Politeknik Caltex Riau</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0369a1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Sungai PCR">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
@@ -213,7 +221,6 @@
             flex-wrap: wrap;
             gap: 10px;
         }
-        .panel-title small { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
 
         .tank {
             position: relative;
@@ -269,6 +276,8 @@
         .controls select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
         .controls select:focus { outline: 2px solid #bae6fd; border-color: var(--primary); }
 
+        .chart-info { margin-bottom: 8px; }
+        .chart-info small { color: var(--muted); font-size: 0.78rem; }
         .chart-wrap { position: relative; height: 260px; }
 
         /* ===== TABLE ===== */
@@ -416,7 +425,7 @@
                     <select id="sel-hour" disabled></select>
                 </div>
             </div>
-            <div style="margin-bottom:8px;"><small id="chart-info" style="color:#64748b;">Memuat...</small></div>
+            <div class="chart-info"><small id="chart-info">Memuat...</small></div>
             <div class="chart-wrap">
                 <canvas id="chart-tinggi"></canvas>
             </div>
@@ -665,8 +674,7 @@
         const dateVal = document.getElementById('sel-date').value;
         const hourVal = document.getElementById('sel-hour').value;
         const { start, end } = getRange(dateVal, hourVal);
-        const info = document.getElementById('chart-info');
-        info.innerText = 'Memuat riwayat...';
+        document.getElementById('chart-info').innerText = 'Memuat riwayat...';
 
         const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json`
             + `?api_key=${READ_API_KEY}&results=${MAKS_RESULTS}`
@@ -940,6 +948,11 @@
         btn.addEventListener('click', () => exportData(btn.dataset.fmt));
     });
     document.addEventListener('click', () => dlMenu.classList.remove('open'));
+
+    // ===== Service Worker (PWA) =====
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js');
+    }
 
     // ===== Jalankan =====
     loadSavedImages();
