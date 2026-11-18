@@ -1,33 +1,58 @@
-const CACHE = 'sungai-v2';
-const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
+const CACHE = 'sungai-v3';
 
-self.addEventListener('install', e => {
-    e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
+const SHELL = [
+    './',
+    './index.html',
+    './manifest.json',
+    './icon.svg'
+];
+
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE).then(cache => cache.addAll(SHELL))
+    );
+
     self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-    e.waitUntil(
-        caches.keys()
-            .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-            .then(() => self.clients.claim())
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(
+                keys
+                    .filter(key => key !== CACHE)
+                    .map(key => caches.delete(key))
+            )
+        ).then(() => self.clients.claim())
     );
 });
 
-self.addEventListener('fetch', e => {
-    if (e.request.method !== 'GET') return;
+self.addEventListener('fetch', event => {
+    if (event.request.method !== 'GET') return;
 
-    // Data ThingSpeak selalu diambil langsung dari jaringan (live)
-    if (e.request.url.includes('thingspeak.com')) return;
+    const url = new URL(event.request.url);
 
-    // Halaman dan aset: ambil dari jaringan, cadangan dari cache jika offline
-    e.respondWith(
-        fetch(e.request)
-            .then(res => {
-                const copy = res.clone();
-                caches.open(CACHE).then(c => c.put(e.request, copy));
-                return res;
+    // API selalu mengambil data langsung dari server.
+    if (
+        url.pathname.includes('/river-api/') ||
+        url.hostname !== self.location.hostname
+    ) {
+        return;
+    }
+
+    event.respondWith(
+        fetch(event.request)
+            .then(response => {
+                if (response.ok) {
+                    const copy = response.clone();
+
+                    caches.open(CACHE).then(cache => {
+                        cache.put(event.request, copy);
+                    });
+                }
+
+                return response;
             })
-            .catch(() => caches.match(e.request))
+            .catch(() => caches.match(event.request))
     );
 });
